@@ -156,8 +156,6 @@ class HttpClient():
 		err = False
 		if not s: err = True
 		if err:
-			self.active = False
-			self.conn.close()
 			return None
 
 		if self.debugreq: print "<<<\n", s
@@ -233,16 +231,38 @@ def forbidden_page():
 		'  </body>\n'
 		'</html>')
 
+def directory_listing(dir, root):
+	s = '<html><body>\n'
+	for f in os.listdir(dir):
+		lf = os.path.join(dir, f)
+		q = urllib.quote_plus(lf.replace(root+os.path.sep, '/', 1), '/')
+		if os.path.isdir(lf):
+			q += '/'
+			f += '/'
+		s += "<a href='%s'>%s</a><br>\n"%(q,f)
+	return s + '</body></html>'
+
 def http_client_thread(c, evt_done):
+	root = os.getcwd()
 	while c.keep_alive and c.active:
 		req = c.read_request()
-		if req is None or req['method'] != 'GET': pass
-		elif os.path.isdir(req['url'][1:]):
+		if req is None: break
+		if req['method'] != 'GET' or (len(req['url']) and req['url'][0] != '/'):
+			c.send(500, "error", "client sent invalid request")
+			break
+		fs = root + req['url']
+		if ".." in req['url']:
 			c.send(403,'Forbidden', forbidden_page())
-		elif req['url'] == '/':
+		elif os.path.isdir(fs):
+			idx = os.path.join(fs, 'index.html')
+			if os.path.exists(idx):
+				c.serve_file(idx, req['range'])
+			else:
+				c.send(200, "OK", directory_listing(fs, root))
+		elif req['url'] == '/': #unused, leaving here as a ref for redirect use
 			c.redirect('/index.html')
-		elif not '..' in req['url'] and os.path.exists(os.getcwd() + req['url']):
-			c.serve_file(os.getcwd() + req['url'], req['range'])
+		elif os.path.exists(fs):
+			c.serve_file(fs, req['range'])
 		elif req['url'] == '/robots.txt':
 			c.send(200, "OK", "User-agent: *\nDisallow: /\n")
 		else:
