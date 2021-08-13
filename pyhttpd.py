@@ -61,9 +61,10 @@ def _parse_req(line):
 		return method, url, ver
 
 class HttpClient():
-	def __init__(self, addr, conn):
+	def __init__(self, addr, conn, root):
 		self.addr = addr
 		self.conn = conn
+		self.root = root
 		self.active = True
 		self.keep_alive = True
 		self.debugreq = False
@@ -201,9 +202,10 @@ class HttpClient():
 		return None
 
 class HttpSrv():
-	def __init__(self, listenip, port):
+	def __init__(self, listenip, port, root):
 		self.port = port
 		self.listenip = listenip
+		self.root = root
 		self.s = None
 
 	def setup(self):
@@ -216,7 +218,7 @@ class HttpSrv():
 
 	def wait_client(self):
 		conn, addr = self.s.accept()
-		c = HttpClient(addr, conn)
+		c = HttpClient(addr, conn, self.root)
 		return c
 
 def forbidden_page():
@@ -243,7 +245,7 @@ def directory_listing(dir, root):
 	return s + '</body></html>'
 
 def http_client_thread(c, evt_done):
-	root = os.getcwd()
+	root = c.root
 	while c.keep_alive and c.active:
 		req = c.read_request()
 		if req is None: break
@@ -277,7 +279,7 @@ def http_client_thread(c, evt_done):
 if __name__ == "__main__":
 	import threading, sys
 	port = 8000 if len(sys.argv) < 2 else int(sys.argv[1])
-	hs = HttpSrv('0.0.0.0', port)
+	hs = HttpSrv('0.0.0.0', port, os.getcwd())
 	hs.setup()
 	client_threads = []
 	while True:
