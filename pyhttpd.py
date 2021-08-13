@@ -31,7 +31,7 @@ try:
 except ImportError:
 	preprocess_file = None
 
-import socket, urllib, os
+import socket, urllib, os, errno
 
 def _format_addr(addr):
         ip, port = addr
@@ -140,7 +140,10 @@ class HttpClient():
 			if len(s):
 				rnrn = s.find('\r\n\r\n')
 				if rnrn != -1: break
-			r = self.conn.recv(CHUNKSIZE)
+			try: r = self.conn.recv(CHUNKSIZE)
+			except socket.error as e:
+				# if e.errno == errno.ECONNRESET: pass
+				return self.disconnect()
 			if len(r) == 0:
 				return self.disconnect()
 			s += r
