@@ -250,7 +250,10 @@ def http_client_thread(c, evt_done):
 		if req['method'] != 'GET' or (len(req['url']) and req['url'][0] != '/'):
 			c.send(500, "error", "client sent invalid request")
 			break
-		fs = root + req['url']
+		if '?' in req['url']:
+			fs = root + req['url'].split('?', 1)[0]
+		else:
+			fs = root + req['url']
 		if ".." in req['url']:
 			c.send(403,'Forbidden', forbidden_page())
 		elif os.path.isdir(fs):
