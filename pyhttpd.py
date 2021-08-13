@@ -20,6 +20,17 @@
 # you can find the full license text at
 # https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html
 
+# if pyexpander is shipped together with pyhttp, make use of it to preprocess
+# html files; if not just serve the plain page.
+try:
+	import pyexpander
+	def preprocess_file(fn):
+		with open(fn, "r") as h:
+			txt, glObals = pyexpander.expandToStr(h.read(), fn)
+			return txt
+except ImportError:
+	preprocess_file = None
+
 import socket, urllib, os
 
 def _format_addr(addr):
@@ -267,6 +278,9 @@ def http_client_thread(c, evt_done):
 				c.send(200, "OK", directory_listing(fs, root))
 		elif req['url'] == '/': #unused, leaving here as a ref for redirect use
 			c.redirect('/index.html')
+		elif os.path.exists(fs) and preprocess_file and fs.endswith('.html'):
+			s = preprocess_file(fs)
+			c.send(200, "OK", s)
 		elif os.path.exists(fs):
 			c.serve_file(fs, req['range'])
 		elif req['url'] == '/robots.txt':
