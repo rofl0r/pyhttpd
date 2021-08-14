@@ -26,7 +26,7 @@ try:
 	import pyexpander
 	def preprocess_file(fn):
 		with open(fn, "r") as h:
-			txt, glObals = pyexpander.expandToStr(h.read(), fn)
+			txt, glObals = pyexpander.expandToStr(h.read(), fn, include_paths=[os.path.dirname(fn)])
 			return txt
 except ImportError:
 	preprocess_file = None
