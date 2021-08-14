@@ -1063,7 +1063,7 @@ class Block(object):
             parts.append("line %d, col %d" % p_elm.rowcol(pos))
             return " ".join(parts)
         except IndexError, _:
-            return "unknown position"
+            return " ".join(parts)
     def _append(self, lst, name, val=None):
         """append a line with property information to a list.
 
