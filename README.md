@@ -36,3 +36,30 @@ usage
 just run `python2 pyhttpd.py` to serve contents of current directory
 on `0.0.0.0` interface and port `8000`. if you pass a command line
 argument, it's treated as a port number to use instead.
+
+**NEW!!!!1**
+pyhttpd now has an extended mode, which allows to override port, ip,
+root directory, and even the main client loop of the app.
+help output:
+
+```
+pyhttpd (c) 2021 rofl0r.
+simple mode (zero or one argument):
+pyhttpd [PORT]
+        serves current directory on 0.0.0.0 port 8000, or on PORT
+
+extended mode:
+pyhttpd [OPTIONS]
+        available OPTIONS:
+        -i LISTENIP - specify ip to listen on
+        -p PORT     - specify port to listen on
+        -r ROOT     - specify root directory of webservice
+        -a APP      - specify python module name for client_main()
+```
+
+see `helloworld.py` for how a custom app may look like, and run
+
+    pyhttpd -a helloworld
+
+this allows you to run your own web app without having to mess
+with the code inside `pyhttpd.py`.

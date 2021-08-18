@@ -350,6 +350,7 @@ def usage():
 		'\t-i LISTENIP - specify ip to listen on\n'
 		'\t-p PORT     - specify port to listen on\n'
 		'\t-r ROOT     - specify root directory of webservice\n'
+		'\t-a APP      - specify python module name for client_main()\n'
 	)
 	sys.exit(1)
 
@@ -358,17 +359,24 @@ def main():
 	port = 8000
 	listen = '0.0.0.0'
 	root = os.getcwd()
+	app = None
 	if len(sys.argv) == 2:
 		if sys.argv[1] == '--help': usage()
 		else: port = int(sys.argv[1])
 	else:
 		import getopt
-		optlist, args = getopt.getopt(sys.argv[1:], ":i:p:r:", ["listenip", "port", "root"])
+		optlist, args = getopt.getopt(sys.argv[1:], ":i:p:r:a:", ["listenip", "port", "root", "app"])
 		for a,b in optlist:
 			if   a in ('-i', '--listenip'): listen = b
 			elif a in ('-p', '--port')    : port = int(b)
 			elif a in ('-r', '--root')    : root = b
+			elif a in ('-a', '--app')     : app = b
 			else: usage()
+	client_main = http_client_thread
+	if app:
+		app = __import__(app)
+		client_main = app.client_main
+
 	hs = HttpSrv(listen, port, root)
 	hs.setup()
 	client_threads = []
@@ -377,7 +385,7 @@ def main():
 		except KeyboardInterrupt: sys.exit(0)
 		sys.stdout.write("[%d] %s\n"%(c.conn.fileno(), _format_addr(c.addr)))
 		evt_done = threading.Event()
-		cthread = threading.Thread(target=http_client_thread, args=(c,evt_done))
+		cthread = threading.Thread(target=client_main, args=(c,evt_done))
 		cthread.daemon = True
 		cthread.start()
 
