@@ -207,7 +207,12 @@ class HttpClient():
 		if self.debugreq: print "<<<\n", s.strip()
 
 		meth, url, ver = _parse_req(s)
-		if (not ver in ["HTTP/1.0", "HTTP/1.1"]) or (not meth  in ['GET', 'POST']):
+		if not ver in ["HTTP/1.1"]:
+			try: self.send(505, "HTTP Version Not Supported", "")
+			except: pass
+			return None
+
+		if not meth in ['GET', 'POST']:
 			return self._invalid_req()
 
 		try: s = self.conn.readuntil('\r\n\r\n', maxbytes=16384)
