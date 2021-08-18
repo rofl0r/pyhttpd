@@ -336,14 +336,15 @@ def http_client_thread(c, evt_done):
 	c.disconnect()
 	evt_done.set()
 
-if __name__ == "__main__":
+def main():
 	import threading, sys
 	port = 8000 if len(sys.argv) < 2 else int(sys.argv[1])
 	hs = HttpSrv('0.0.0.0', port, os.getcwd())
 	hs.setup()
 	client_threads = []
 	while True:
-		c = hs.wait_client()
+		try: c = hs.wait_client()
+		except KeyboardInterrupt: sys.exit(0)
 		sys.stdout.write("[%d] %s\n"%(c.conn.fileno(), _format_addr(c.addr)))
 		evt_done = threading.Event()
 		cthread = threading.Thread(target=http_client_thread, args=(c,evt_done))
@@ -361,3 +362,5 @@ if __name__ == "__main__":
 
 		client_threads.append((cthread, evt_done))
 
+if __name__ == "__main__":
+	main()
