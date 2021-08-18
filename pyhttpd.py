@@ -336,10 +336,40 @@ def http_client_thread(c, evt_done):
 	c.disconnect()
 	evt_done.set()
 
+def usage():
+	import sys
+	sys.stderr.write(
+		'pyhttpd (c) 2021 rofl0r.\n'
+		'simple mode (zero or one argument):\n'
+		'pyhttpd [PORT]\n'
+		'\tserves current directory on 0.0.0.0 port 8000, or on PORT\n'
+		'\n'
+		'extended mode:\n'
+		'pyhttpd [OPTIONS]\n'
+		'\tavailable OPTIONS:\n'
+		'\t-i LISTENIP - specify ip to listen on\n'
+		'\t-p PORT     - specify port to listen on\n'
+		'\t-r ROOT     - specify root directory of webservice\n'
+	)
+	sys.exit(1)
+
 def main():
 	import threading, sys
-	port = 8000 if len(sys.argv) < 2 else int(sys.argv[1])
-	hs = HttpSrv('0.0.0.0', port, os.getcwd())
+	port = 8000
+	listen = '0.0.0.0'
+	root = os.getcwd()
+	if len(sys.argv) == 2:
+		if sys.argv[1] == '--help': usage()
+		else: port = int(sys.argv[1])
+	else:
+		import getopt
+		optlist, args = getopt.getopt(sys.argv[1:], ":i:p:r:", ["listenip", "port", "root"])
+		for a,b in optlist:
+			if   a in ('-i', '--listenip'): listen = b
+			elif a in ('-p', '--port')    : port = int(b)
+			elif a in ('-r', '--root')    : root = b
+			else: usage()
+	hs = HttpSrv(listen, port, root)
 	hs.setup()
 	client_threads = []
 	while True:
