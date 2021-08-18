@@ -33,6 +33,48 @@ except ImportError:
 
 import socket, urllib, os, errno
 
+# buffered socket class allows to do readline() etc, without having
+# to resort to reading 1 byte at a time with huge syscall overhead.
+# use read() instead of recv() to make use of it.
+class BufferedSocket(socket.socket):
+	def __init__(self, family=socket.AF_INET, type=socket.SOCK_STREAM, proto=0, _sock=None):
+		self.buffer = ''
+		if not _sock:
+			super(BufferedSocket, self).__init__(family, type, proto, _sock)
+		else:
+			super(BufferedSocket, self).__init__(_sock=_sock)
+	def accept(self):
+		sock, addr = super(BufferedSocket, self).accept()
+		return BufferedSocket(_sock=sock), addr
+	def read(self, bufsize, flags=0):
+		if len(self.buffer):
+			s = self.buffer[:bufsize]
+			self.buffer = self.buffer[bufsize:]
+			return s
+		return self.recv(bufsize, flags)
+	def readuntil(self, marker, exclude_marker=False, maxbytes=-1):
+		p = self.buffer.find(marker)
+		if p != -1:
+			if not exclude_marker:
+				p += len(marker)
+			s = self.buffer[:p]
+			self.buffer = self.buffer[p:]
+			return s
+		elif maxbytes != -1 and len(self.buffer) >= maxbytes:
+			# in case marker is not found within maxbytes
+			# (or conn was reset), return empty result,
+			# as a partial result would be unexpected
+			return ''
+		while self.buffer.find(marker) == -1:
+			s = self.recv(4096)
+			self.buffer += s
+			if s == '' or (maxbytes != -1 and len(self.buffer) >= maxbytes):
+				maxbytes = len(self.buffer)
+				break
+		return self.readuntil(marker, exclude_marker, maxbytes)
+	def readline(self, exclude_marker=False, maxbytes=-1):
+		return self.readuntil('\n', exclude_marker, maxbytes)
+
 def _format_addr(addr):
         ip, port = addr
         return "%s:%d"%(ip, port)
@@ -58,6 +100,7 @@ def _resolve(host, port, want_v4=True):
 	return None, None
 
 def _parse_req(line):
+	line = line.strip()
 	r = line.find(' ')
 	if r == -1:
 		return '', '', ''
@@ -70,6 +113,25 @@ def _parse_req(line):
 		ver = rest[r+1:]
 		url = rest[:r]
 		return method, url, ver
+
+# turns lines in the form of key:value into a dict with lowercase keys.
+# lines not containing ':' are discarded from the result
+def _parse_to_dict(s):
+	def next_line(s):
+		start = 0
+		while start < len(s):
+			end = s.find('\n', start)
+			if end == -1: end = len(s) +1
+			subs = s[start:end]
+			start = end + 1
+			yield subs
+	result = {}
+	for line in next_line(s):
+		p = line.find(':')
+		if p > 0:
+			result[line[:p].lower()] = line[p+1:].strip()
+	return result
+
 
 class HttpClient():
 	def __init__(self, addr, conn, root):
@@ -120,7 +182,7 @@ class HttpClient():
 			h.seek(start)
 			while sent < sz-start:
 				chunk = h.read(4096)
-				try: self._send_i(chunk)
+				try: self.conn.send(chunk)
 				except:
 					self.disconnect()
 					break
@@ -132,80 +194,61 @@ class HttpClient():
 		self.send(301, "Moved Permanently", "", headers=h)
 
 	def _url_decode(self, s): return urllib.unquote_plus(s)
-
+	def _invalid_req(self):
+		try: self.send(500, "error", "client sent invalid request")
+		except: pass
+		return None
 	def read_request(self):
-		s = ''
-		CHUNKSIZE = 1024
-		while 1:
-			if len(s):
-				rnrn = s.find('\r\n\r\n')
-				if rnrn != -1: break
-			try: r = self.conn.recv(CHUNKSIZE)
-			except socket.error as e:
-				# if e.errno == errno.ECONNRESET: pass
-				return self.disconnect()
-			if len(r) == 0:
-				return self.disconnect()
-			s += r
+		try: s = self.conn.readline(maxbytes=4096)
+		# don't return a HTTP error message yet, as this might not
+		# even be a valid HTTP request.
+		except socket.error as e: return None
+		if s == '': return None
+		if self.debugreq: print "<<<\n", s.strip()
 
-		cl = 0
-		range = None
-		for line in s.split('\n'):
-			if line.lower().startswith('connection:'):
-				try: ka = line.lower().split(':', 1)[1].strip()
-				except: pass
-				if ka != 'keep-alive': c.keep_alive = False
-			elif line.lower().startswith('range: bytes='):
-				try: range = line.split('=')[1].strip()
-				except: pass
-			elif line.lower().startswith('content-length:'):
-				try: cl = int(line.split(':', 1)[1].strip())
-				except: pass
-				break
+		meth, url, ver = _parse_req(s)
+		if (not ver in ["HTTP/1.0", "HTTP/1.1"]) or (not meth  in ['GET', 'POST']):
+			return self._invalid_req()
 
-		while len(s) < rnrn + 4 + cl:  # 4 == len('\r\n\r\n')
-			r = self.conn.recv(CHUNKSIZE)
-			if len(r) == 0: return None
-			s += r
+		try: s = self.conn.readuntil('\r\n\r\n', maxbytes=16384)
+		except socket.error as e:
+			# if e.errno == errno.ECONNRESET: pass
+			return self._invalid_req()
+		if s == '': return self._invalid_req()
+		if self.debugreq: print s.strip()
 
-		err = False
-		if not s: err = True
-		if err:
-			return None
-
-		if self.debugreq: print "<<<\n", s
-
-		n = s.find('\r\n')
-		if n == -1: err = True
-		else:
-			line = s[:n]
-			a = s[n+2:]
-			meth, url, ver = _parse_req(line)
-			if not (ver == "HTTP/1.0" or ver == "HTTP/1.1"):
-				err = True
-			if not (meth == 'GET' or meth == 'POST'):
-				err = True
-		if err:
-			self.send(500, "error", "client sent invalid request")
-			return self.disconnect()
-		result = dict()
+		headers = _parse_to_dict(s)
+		result = {}
 		result['method'] = meth
 		result['url'] = self._url_decode(url)
-		for x in a.split('\r\n'):
-			if ':' in x:
-				y,z = x.split(':', 1)
-				result[y] = z.strip()
+		result['headers'] = headers
+		try:
+			range = result['headers']['range']
+			if range.lower().startswith('bytes='):
+				range = range.split('=')[1].strip()
+				if range[0] != '-' and range.endswith('-'):
+					result['range'] = int(range[:-1])
+		except: pass
+		if not 'range' in result: result['range'] = 0
+		try: cl = int(result['headers']['content-length'])
+		except: cl = 0
+		s = ''
+		while len(s) < cl:
+			try: r = self.conn.read(cl-len(s))
+			except: return self._invalid_req()
+			if r == '': return self._invalid_req()
+			s += r
+		if cl and self.debugreq: print s.strip()
 		if meth == 'POST':
-			result['postdata'] = dict()
-			postdata = s[rnrn:]
-			for line in postdata.split('\n'):
-				if '=' in line:
-					k,v = line.split('=', 1)
-					result['postdata'][k] = self._url_decode(v.strip())
-		result['range'] = 0
-		if range and range[0] != '-' and range.endswith('-'):
-			try: result['range'] = int(range[:-1])
-			except: pass
+			if 'content-type' in result['headers'] and result['headers']['content-type'] == 'application/x-www-form-urlencoded':
+				postdata = _parse_to_dict(s)
+				for k in postdata.keys():
+					postdata[k] = self._url_decode(postdata[k])
+				result['postdata'] = postdata
+			else:
+				try: self.send(500, "error", "unexpected content-type")
+				except: pass
+				return None
 		return result
 
 	def disconnect(self):
@@ -224,7 +267,7 @@ class HttpSrv():
 
 	def setup(self):
 		af, sa = _resolve(self.listenip, self.port)
-		s = socket.socket(af, socket.SOCK_STREAM)
+		s = BufferedSocket(af, socket.SOCK_STREAM)
 		s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		s.bind((sa[0], sa[1]))
 		s.listen(128)
