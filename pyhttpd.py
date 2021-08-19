@@ -144,8 +144,10 @@ class HttpClient():
 		self.debugreq = False
 
 	def _send_i(self, data):
-		self.conn.send(data)
+		try: self.conn.send(data)
+		except: return False
 		if self.debugreq and len(data): print ">>>\n", data
+		return True
 
 	def send_header(self, code, msg, response_len, headers=None):
 		r = "HTTP/1.1 %d %s\r\n"%(code, msg)
@@ -153,19 +155,12 @@ class HttpClient():
 			for h in headers:
 				r += "%s: %s\r\n"%(h, headers[h])
 		r += "Content-Length: %d\r\n\r\n" % response_len
-		try: self._send_i(r)
-		except:
-			self.disconnect()
-			return False
-		return True
+		return self._send_i(r)
 
 	def send(self, code, msg, response, headers=None):
 		if not self.send_header(code, msg, len(response), headers):
-			return
-		try:
-			self._send_i(response)
-		except:
-			self.disconnect()
+			return False
+		return self._send_i(response)
 
 	def serve_file(self, filename, start=0):
 		st = os.stat(filename)
