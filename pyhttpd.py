@@ -116,7 +116,8 @@ def _parse_req(line):
 
 # turns lines in the form of key:value into a dict with lowercase keys.
 # lines not containing ':' are discarded from the result
-def _parse_to_dict(s):
+# separator may be of length 1
+def _parse_to_dict(s, sep=':'):
 	def next_line(s):
 		start = 0
 		while start < len(s):
@@ -127,7 +128,7 @@ def _parse_to_dict(s):
 			yield subs
 	result = {}
 	for line in next_line(s):
-		p = line.find(':')
+		p = line.find(sep)
 		if p > 0:
 			result[line[:p].lower()] = line[p+1:].strip()
 	return result
@@ -237,23 +238,33 @@ class HttpClient():
 		if not 'range' in result: result['range'] = 0
 		try: cl = int(result['headers']['content-length'])
 		except: cl = 0
-		s = ''
-		while len(s) < cl:
-			try: r = self.conn.read(cl-len(s))
-			except: return self._invalid_req()
-			if r == '': return self._invalid_req()
-			s += r
-		if cl and self.debugreq: print s.strip()
-		if meth == 'POST':
-			if 'content-type' in result['headers'] and result['headers']['content-type'] == 'application/x-www-form-urlencoded':
-				postdata = _parse_to_dict(s)
-				for k in postdata.keys():
-					postdata[k] = self._url_decode(postdata[k])
-				result['postdata'] = postdata
-			else:
-				try: self.send(500, "error", "unexpected content-type")
-				except: pass
-				return None
+		ct = result['headers']['content-type'] if 'content-type' in result['headers'] else ''
+
+		if meth == 'GET' or (meth == 'POST' and ct in ('application/x-www-form-urlencoded', 'text/plain')):
+			s = ''
+			while len(s) < cl:
+				try: r = self.conn.read(cl-len(s))
+				except: return self._invalid_req()
+				if r == '': return self._invalid_req()
+				s += r
+			if cl and self.debugreq: print s.strip()
+			if meth == 'POST':
+				if ct in ('application/x-www-form-urlencoded', 'text/plain'):
+					postdata = _parse_to_dict(s, '=')
+					if ct == 'application/x-www-form-urlencoded':
+						for k in postdata.keys():
+							postdata[k] = self._url_decode(postdata[k])
+					result['postdata'] = postdata
+			# we leave the onus to parse multipart/formdata to
+			# the client script, as it involves reading a potentially
+			# huge file, which could easily be abused to DOS the
+			# service. the client script should extract
+			# content-length header and use client.conn.read*() to
+			# extract the parts it is interested in.
+				elif not ct == 'multipart/formdata':
+					try: self.send(500, "error", "unknown content-type")
+					except: pass
+					return None
 		return result
 
 	def disconnect(self):
