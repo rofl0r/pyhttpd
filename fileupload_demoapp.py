@@ -80,9 +80,9 @@ def client_main(c, evt_done):
 					' <p>upload success!</p>\n'
 					'<body></html>\n')
 			else:
-				c.send(500, "error", "malformed request")
+				c.send_error(400)
 		else:
-			c.send(404, "not exist", "the reqested file not exist!!!1\n")
+			c.send_error(404)
 	c.disconnect()
 	evt_done.set()
 

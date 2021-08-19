@@ -133,6 +133,19 @@ def _parse_to_dict(s, sep=':'):
 			result[line[:p].lower()] = line[p+1:].strip()
 	return result
 
+ERROR_DICT = {
+	400: 'Bad Request',
+	401: 'Unauthorized',
+	403: 'Forbidden',
+	404: 'Not Found',
+	405: 'Method Not Allowed',
+	416: 'Range Not Satisfiable',
+	500: 'Internal Server Error',
+	501: 'Not Implemented',
+	503: 'Service Unavailable',
+	505: 'HTTP Version Not Supported',
+	507: 'Insufficient Storage',
+}
 
 class HttpClient():
 	def __init__(self, addr, conn, root):
@@ -162,6 +175,13 @@ class HttpClient():
 			return False
 		return self._send_i(response)
 
+	def send_error(self, code, text=None):
+		if not code in ERROR_DICT: code = 500
+		msg = ERROR_DICT[code]
+		if text is None: text = "error %d: %s\r\n"%(code, msg)
+		self.send(code, msg, text)
+		return None
+
 	def serve_file(self, filename, start=0):
 		st = os.stat(filename)
 		sz = st.st_size
@@ -169,8 +189,7 @@ class HttpClient():
 		if start == 0:
 			self.send_header(200, "OK", sz-start)
 		elif start >= sz:
-			self.send(416, "Range not satisfiable", "")
-			return
+			return self.send_error(416)
 		else:
 			self.send_header(206, "Partial Content", sz-start, {"Content-Range": "bytes %d-%d/%d"%(start, sz-1, sz)})
 
@@ -190,10 +209,7 @@ class HttpClient():
 		self.send(301, "Moved Permanently", "", headers=h)
 
 	def _url_decode(self, s): return urllib.unquote_plus(s)
-	def _invalid_req(self):
-		try: self.send(500, "error", "client sent invalid request")
-		except: pass
-		return None
+
 	def read_request(self):
 		try: s = self.conn.readline(maxbytes=4096)
 		# don't return a HTTP error message yet, as this might not
@@ -203,19 +219,16 @@ class HttpClient():
 		if self.debugreq: print "<<<\n", s.strip()
 
 		meth, url, ver = _parse_req(s)
-		if not ver in ["HTTP/1.1"]:
-			try: self.send(505, "HTTP Version Not Supported", "")
-			except: pass
-			return None
-
-		if not meth in ['GET', 'POST']:
-			return self._invalid_req()
+		if not ver.startswith('HTTP/'): return self.send_error(400)
+		elif ver != "HTTP/1.1": return self.send_error(505)
+		elif not meth in ['GET', 'POST']:
+			return self.send_error(405)
 
 		try: s = self.conn.readuntil('\r\n\r\n', maxbytes=16384)
-		except socket.error as e:
-			# if e.errno == errno.ECONNRESET: pass
-			return self._invalid_req()
-		if s == '': return self._invalid_req()
+		except: return self.send_error(400)
+		# except socket.error as e:
+		# if e.errno == errno.ECONNRESET: pass
+		if s == '': return self.send_error(400)
 		if self.debugreq: print s.strip()
 
 		headers = _parse_to_dict(s)
@@ -239,8 +252,8 @@ class HttpClient():
 			s = ''
 			while len(s) < cl:
 				try: r = self.conn.read(cl-len(s))
-				except: return self._invalid_req()
-				if r == '': return self._invalid_req()
+				except: return self.send_error(400)
+				if r == '': return self.send_error(400)
 				s += r
 			if cl and self.debugreq: print s.strip()
 			if meth == 'POST':
@@ -257,9 +270,7 @@ class HttpClient():
 			# content-length header and use client.conn.read*() to
 			# extract the parts it is interested in.
 				elif not ct == 'multipart/formdata':
-					try: self.send(500, "error", "unknown content-type")
-					except: pass
-					return None
+					return self.send_error(400, "unknown content-type")
 		return result
 
 	def disconnect(self):
@@ -317,11 +328,15 @@ def http_client_thread(c, evt_done):
 	while c.keep_alive and c.active:
 		req = c.read_request()
 		if req is None: break
-		if req['method'] != 'GET' or (len(req['url']) and req['url'][0] != '/'):
-			c.send(500, "error", "client sent invalid request")
+		if req['method'] != 'GET':
+			# our built-in client loop supports only 'GET'
+			c.send_error(405)
+			break
+		elif len(req['url']) and req['url'][0] != '/':
+			c.send_error(400)
 			break
 		if ".." in req['url']:
-			c.send(403,'Forbidden', forbidden_page())
+			c.send_error(403, forbidden_page())
 			break
 		if '?' in req['url']:
 			fs = root + req['url'].split('?', 1)[0]
@@ -343,7 +358,7 @@ def http_client_thread(c, evt_done):
 		elif req['url'] == '/robots.txt':
 			c.send(200, "OK", "User-agent: *\nDisallow: /\n")
 		else:
-			c.send(404, "not exist", "the reqested file not exist!!!1\n")
+			c.send_error(404)
 	c.disconnect()
 	evt_done.set()
 
