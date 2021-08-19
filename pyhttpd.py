@@ -196,7 +196,7 @@ class HttpClient():
 		with open(filename, 'r') as h:
 			h.seek(start)
 			while sent < sz-start:
-				chunk = h.read(4096)
+				chunk = h.read(16384)
 				try: self.conn.send(chunk)
 				except:
 					self.disconnect()
