@@ -338,18 +338,14 @@ def http_client_thread(c, evt_done):
 		if ".." in req['url']:
 			c.send_error(403, forbidden_page())
 			break
-		if '?' in req['url']:
-			fs = root + req['url'].split('?', 1)[0]
-		else:
-			fs = root + req['url']
+		fn = req['url'].find('?')
+		if fn != -1: fn = req['url'][:fn]
+		else: fn = req['url']
+		fs = root + fn
 		if os.path.isdir(fs):
-			idx = os.path.join(fs, 'index.html')
-			if os.path.exists(idx):
-				c.serve_file(idx, req['range'])
-			else:
-				c.send(200, "OK", directory_listing(fs, root))
-		elif req['url'] == '/': #unused, leaving here as a ref for redirect use
-			c.redirect('/index.html')
+			if os.path.exists(os.path.join(fs, 'index.html')):
+				c.redirect(os.path.join(fn, 'index.html'))
+			else: c.send(200, "OK", directory_listing(fs, root))
 		elif os.path.exists(fs) and preprocess_file and fs.endswith('.html'):
 			s = preprocess_file(fs)
 			c.send(200, "OK", s)
