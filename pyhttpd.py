@@ -350,6 +350,10 @@ def directory_listing(dir, root):
 			(q,f,"/" if d else "", format_date(st.st_mtime),'-  ' if d else format_size(st.st_size),'Directory' if d else 'File')
 	return s + '</tbody></table></div><div class="foot">pyhttpd</div></body></html>'
 
+def sec_check(fs, root):
+	rp = os.path.normpath(fs)
+	return rp == root or rp.startswith(root + os.path.sep)
+
 def http_client_thread(c, evt_done):
 	root = c.root
 	while c.keep_alive and c.active:
@@ -362,13 +366,13 @@ def http_client_thread(c, evt_done):
 		elif len(req['url']) and req['url'][0] != '/':
 			c.send_error(400)
 			break
-		if ".." in req['url']:
-			c.send_error(403, forbidden_page())
-			break
 		fn = req['url'].find('?')
 		if fn != -1: fn = req['url'][:fn]
 		else: fn = req['url']
 		fs = root + fn
+		if not sec_check(fs, root):
+			c.send_error(403, forbidden_page())
+			break
 		if os.path.isdir(fs):
 			if os.path.exists(os.path.join(fs, 'index.html')):
 				c.redirect(os.path.join(fn, 'index.html'))
@@ -426,6 +430,7 @@ def main():
 		app = __import__(app)
 		client_main = app.client_main
 
+	root = root.rstrip(os.path.sep)
 	hs = HttpSrv(listen, port, root)
 	hs.setup()
 	client_threads = []
