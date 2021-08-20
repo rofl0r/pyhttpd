@@ -313,15 +313,42 @@ def forbidden_page():
 		'</html>')
 
 def directory_listing(dir, root):
-	s = '<html><body>\n'
+	def format_date(ct):
+		import time
+		return time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(ct))
+	def format_size(sz):
+		i = 0; r = 0
+		while 1:
+			if sz / 1024 == 0: break
+			i += 1 ; r = sz % 1024 ; sz /= 1024
+		if i == 0: return '%d B'%sz
+		return '%d.%d %s'%(sz, int((r/1024.0)*10), 'BKMGTPEZY'[i])
+	s = (	'<!DOCTYPE html>\n<html>\n <head><meta charset="utf-8"/>\n'
+		'<style>\n'
+		'a, a:active {text-decoration: none; color: blue;}\n'
+		'a:visited {color: #48468F;}\n'
+		'a:hover, a:focus {text-decoration: underline; color: red;}\n'
+		'body {background-color: #F5F5F5;}\nh2 {margin-bottom: 12px;}\n'
+		'table {margin-left: 12px;}\n'
+		'th, td { font: 90%% monospace; text-align: left;}\n'
+		'th { font-weight: bold; padding-right: 14px; padding-bottom: 3px;}\n'
+		'td {padding-right: 14px;}\ntd.s, th.s {text-align: right;}\n'
+		'div.list { background-color: white; border-top: 1px solid #646464; border-bottom: 1px solid #646464; padding-top: 10px; padding-bottom: 14px;}\n'
+		'div.foot { font: 90%% monospace; color: #787878; padding-top: 4px;}\n'
+		'</style><title>Index of %s</title></head><body>\n<h2>Index of %s</h2>\n'
+		'<div class="list"><table summary="Directory Listing" cellpadding="0" cellspacing="0">'
+		'<thead><tr><th class="n">Name</th><th class="m">Last Modified</th><th class="s">Size</th><th class="t">Type</th></tr></thead>\n'
+		'<tbody><tr><td class="n"><a href="../">Parent Directory</a>/</td><td class="m"> </td><td class="s">-  </td><td class="t">Directory</td></tr>\n'
+		%(dir, dir))
 	for f in os.listdir(dir):
 		lf = os.path.join(dir, f)
 		q = urllib.quote_plus(lf.replace(root+os.path.sep, '/', 1), '/')
-		if os.path.isdir(lf):
-			q += '/'
-			f += '/'
-		s += "<a href='%s'>%s</a><br>\n"%(q,f)
-	return s + '</body></html>'
+		d = os.path.isdir(lf)
+		if d: q += '/'
+		st = os.stat(lf)
+		s += '<tr><td class="n"><a href="%s">%s</a>%s</td><td class="m">%s</td><td class="s">%s</td><td class="t">%s</td></tr>\n'% \
+			(q,f,"/" if d else "", format_date(st.st_mtime),'-  ' if d else format_size(st.st_size),'Directory' if d else 'File')
+	return s + '</tbody></table></div><div class="foot">pyhttpd</div></body></html>'
 
 def http_client_thread(c, evt_done):
 	root = c.root
