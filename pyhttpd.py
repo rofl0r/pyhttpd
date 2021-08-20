@@ -313,6 +313,21 @@ def forbidden_page():
 		'</html>')
 
 def directory_listing(dir, root):
+	def format_filename(f):
+		def utf8len(s):
+			i = 0 ; l = 0
+			while i < len(s):
+				if not ord(s[i]) & 0x80: l += 1
+				elif ord(s[i]) & 0xc0 == 0xc0: l+=1
+				i += 1
+			return l
+		if len(f) <= 80 or utf8len(f) <= 80: return f
+		# avoid splitting utf-8 characters in the middle
+		p = 50
+		while p < 55 and ((ord(f[p]) & 0xc0) == 0x80): p += 1
+		q = 77-p
+		while q > 15 and ((ord(f[-q]) & 0xc0) == 0x80): q -= 1
+		return '%s...%s'%(f[:p], f[-(q):])
 	def format_date(ct):
 		import time
 		return time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(ct))
@@ -347,7 +362,7 @@ def directory_listing(dir, root):
 		if d: q += '/'
 		st = os.stat(lf)
 		s += '<tr><td class="n"><a href="%s">%s</a>%s</td><td class="m">%s</td><td class="s">%s</td><td class="t">%s</td></tr>\n'% \
-			(q,f,"/" if d else "", format_date(st.st_mtime),'-  ' if d else format_size(st.st_size),'Directory' if d else 'File')
+			(q,format_filename(f),"/" if d else "", format_date(st.st_mtime),'-  ' if d else format_size(st.st_size),'Directory' if d else 'File')
 	return s + '</tbody></table></div><div class="foot">pyhttpd</div></body></html>'
 
 def sec_check(fs, root):
