@@ -310,6 +310,7 @@ def forbidden_page():
 		'</html>')
 
 def directory_listing(dir, root):
+	import time
 	def format_filename(f):
 		def utf8len(s):
 			i = 0 ; l = 0
@@ -326,7 +327,6 @@ def directory_listing(dir, root):
 		while q > 15 and ((ord(f[-q]) & 0xc0) == 0x80): q -= 1
 		return '%s...%s'%(f[:p], f[-(q):])
 	def format_date(ct):
-		import time
 		return time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(ct))
 	def format_size(sz):
 		i = 0; r = 0
