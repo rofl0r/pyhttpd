@@ -335,7 +335,16 @@ def directory_listing(dir, root):
 			i += 1 ; r = sz % 1024 ; sz /= 1024
 		if i == 0: return '%d B'%sz
 		return '%d.%d %s'%(sz, int((r/1024.0)*10), 'BKMGTPEZY'[i])
-	s = (	'<!DOCTYPE html>\n<html>\n <head><meta charset="utf-8"/>\n'
+	def dir_entry(f):
+		lf = os.path.join(dir, f)
+		q = urllib.quote_plus(lf.replace(root+os.path.sep, '/', 1), '/')
+		d = os.path.isdir(lf)
+		if d: q += '/'
+		st = os.stat(lf)
+		return '<tr><td class="n"><a href="%s">%s</a>%s</td><td class="m">%s</td><td class="s">%s</td><td class="t">%s</td></tr>\n'% \
+			(q,format_filename(f),"/" if d else "", format_date(st.st_mtime),'-  ' if d else format_size(st.st_size),'Directory' if d else 'File')
+
+	h = (	'<!DOCTYPE html>\n<html>\n <head><meta charset="utf-8"/>\n'
 		'<style>\n'
 		'a, a:active {text-decoration: none; color: blue;}\n'
 		'a:visited {color: #48468F;}\n'
@@ -352,15 +361,8 @@ def directory_listing(dir, root):
 		'<thead><tr><th class="n">Name</th><th class="m">Last Modified</th><th class="s">Size</th><th class="t">Type</th></tr></thead>\n'
 		'<tbody><tr><td class="n"><a href="../">Parent Directory</a>/</td><td class="m"> </td><td class="s">-  </td><td class="t">Directory</td></tr>\n'
 		%(dir, dir))
-	for f in os.listdir(dir):
-		lf = os.path.join(dir, f)
-		q = urllib.quote_plus(lf.replace(root+os.path.sep, '/', 1), '/')
-		d = os.path.isdir(lf)
-		if d: q += '/'
-		st = os.stat(lf)
-		s += '<tr><td class="n"><a href="%s">%s</a>%s</td><td class="m">%s</td><td class="s">%s</td><td class="t">%s</td></tr>\n'% \
-			(q,format_filename(f),"/" if d else "", format_date(st.st_mtime),'-  ' if d else format_size(st.st_size),'Directory' if d else 'File')
-	return s + '</tbody></table></div><div class="foot">pyhttpd</div></body></html>'
+	f = '</tbody></table></div><div class="foot">pyhttpd</div></body></html>'
+	return "%s%s%s"%(h, ''.join(dir_entry(x) for x in os.listdir(dir)), f)
 
 def sec_check(fs, root):
 	rp = os.path.normpath(fs)
