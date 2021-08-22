@@ -163,11 +163,8 @@ class HttpClient():
 		return True
 
 	def send_header(self, code, msg, response_len, headers=None):
-		r = "HTTP/1.1 %d %s\r\n"%(code, msg)
-		if headers:
-			for h in headers:
-				r += "%s: %s\r\n"%(h, headers[h])
-		r += "Content-Length: %d\r\n\r\n" % response_len
+		h = '' if not headers else "".join("%s: %s\r\n"%(x, headers[x]) for x in headers)
+		r = "HTTP/1.1 %d %s\r\n%sContent-Length: %d\r\n\r\n"%(code, msg, h, response_len)
 		return self._send_i(r)
 
 	def send(self, code, msg, response, headers=None):
