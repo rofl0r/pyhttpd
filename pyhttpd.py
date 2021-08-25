@@ -310,7 +310,7 @@ def forbidden_page():
 		'</html>')
 
 def directory_listing(dir, root):
-	import time
+	import time, stat
 	def format_filename(f):
 		def utf8len(s):
 			i = 0 ; l = 0
@@ -338,9 +338,9 @@ def directory_listing(dir, root):
 	def dir_entry(f):
 		lf = os.path.join(dir, f)
 		q = urllib.quote_plus(lf.replace(root+os.path.sep, '/', 1), '/')
-		d = os.path.isdir(lf)
-		if d: q += '/'
 		st = os.stat(lf)
+		d = stat.S_ISDIR(st.st_mode)
+		if d: q += '/'
 		return '<tr><td class="n"><a href="%s">%s</a>%s</td><td class="m">%s</td><td class="s">%s</td><td class="t">%s</td></tr>\n'% \
 			(q,format_filename(f),"/" if d else "", format_date(st.st_mtime),'-  ' if d else format_size(st.st_size),'Directory' if d else 'File')
 
