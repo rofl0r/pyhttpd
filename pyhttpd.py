@@ -217,7 +217,7 @@ class HttpClient():
 
 		meth, url, ver = _parse_req(s)
 		if not ver.startswith('HTTP/'): return self.send_error(400)
-		elif ver != "HTTP/1.1": return self.send_error(505)
+		elif not ver in ["HTTP/1.1", "HTTP/1.0"]: return self.send_error(505)
 		elif not meth in ['GET', 'POST']:
 			return self.send_error(405)
 
