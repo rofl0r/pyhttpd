@@ -147,6 +147,15 @@ ERROR_DICT = {
 	507: 'Insufficient Storage',
 }
 
+CONTENT_TYPE_DICT = {
+	'.html' : 'text/html',
+}
+
+def _get_content_type(filename):
+	_, ext = os.path.splitext(filename)
+	if ext in CONTENT_TYPE_DICT: return CONTENT_TYPE_DICT[ext]
+	return ''
+
 class HttpClient():
 	def __init__(self, addr, conn, root):
 		self.addr = addr
@@ -183,12 +192,16 @@ class HttpClient():
 		st = os.stat(filename)
 		sz = st.st_size
 		sent = 0
+		headers = {}
+		ct = _get_content_type(filename)
+		if ct != '': headers['Content-Type'] = ct
 		if start == 0:
-			self.send_header(200, "OK", sz-start)
+			self.send_header(200, "OK", sz-start, headers)
 		elif start >= sz:
 			return self.send_error(416)
 		else:
-			self.send_header(206, "Partial Content", sz-start, {"Content-Range": "bytes %d-%d/%d"%(start, sz-1, sz)})
+			headers["Content-Range"] = "bytes %d-%d/%d"%(start, sz-1, sz)
+			self.send_header(206, "Partial Content", sz-start, headers)
 
 		with open(filename, 'r') as h:
 			h.seek(start)
@@ -375,6 +388,7 @@ def check_authed(auth_str):
 	if not auth_str.lower().startswith('basic '): return False
 	return auth_str[6:] in auth_list
 
+HTML_HEADER = {'Content-Type': 'text/html'}
 def http_client_thread(c, evt_done):
 	root = c.root
 	while c.keep_alive and c.active:
@@ -401,10 +415,10 @@ def http_client_thread(c, evt_done):
 		if os.path.isdir(fs):
 			if os.path.exists(os.path.join(fs, 'index.html')):
 				c.redirect(os.path.join(fn, 'index.html'))
-			else: c.send(200, "OK", directory_listing(fs, root))
+			else: c.send(200, "OK", directory_listing(fs, root), HTML_HEADER)
 		elif os.path.exists(fs) and preprocess_file and fs.endswith('.html'):
 			s = preprocess_file(fs)
-			c.send(200, "OK", s)
+			c.send(200, "OK", s, HTML_HEADER)
 		elif os.path.exists(fs):
 			c.serve_file(fs, req['range'])
 		elif req['url'] == '/robots.txt':
