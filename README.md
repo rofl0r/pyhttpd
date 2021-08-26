@@ -55,6 +55,7 @@ pyhttpd [OPTIONS]
         -p PORT     - specify port to listen on
         -r ROOT     - specify root directory of webservice
         -a APP      - specify python module name for client_main()
+        -A FILE     - read basic auth user:pass from FILE (use - for stdin)
 ```
 
 see `helloworld.py` for how a custom app may look like, and run
@@ -63,3 +64,10 @@ see `helloworld.py` for how a custom app may look like, and run
 
 this allows you to run your own web app without having to mess
 with the code inside `pyhttpd.py`.
+
+basic auth
+----------
+in order to use basic authentication to access the "built-in app",
+which serves files and directory listings (if no index.html is found),
+use argument `-A FILE` with a filename containing a user:pass pair
+separated with a colon character. `-A -` reads the pair from stdin.

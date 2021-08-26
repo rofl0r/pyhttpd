@@ -369,11 +369,21 @@ def sec_check(fs, root):
 	rp = os.path.normpath(fs)
 	return rp == root or rp.startswith(root + os.path.sep)
 
+auth_list = None
+def check_authed(auth_str):
+	if not auth_list: return True
+	if not auth_str.lower().startswith('basic '): return False
+	return auth_str[6:] in auth_list
+
 def http_client_thread(c, evt_done):
 	root = c.root
 	while c.keep_alive and c.active:
 		req = c.read_request()
 		if req is None: break
+		if auth_list:
+			if not 'authorization' in req['headers'] or not check_authed(req['headers']['authorization']):
+				c.send(401, 'Unauthorized', '', {'WWW-Authenticate':'Basic realm="login required"'})
+				break
 		if req['method'] != 'GET':
 			# our built-in client loop supports only 'GET'
 			c.send_error(405)
@@ -404,6 +414,22 @@ def http_client_thread(c, evt_done):
 	c.disconnect()
 	evt_done.set()
 
+def read_auth(fn):
+	import sys
+	if fn == '-':
+		print('enter username:password (separated with ":")')
+		f = sys.stdin
+	else: f = open(fn, "r")
+	s = f.readline().strip()
+	if not ':' in s:
+		sys.stderr.write("authstring needs to look like user:pass\n")
+		sys.exit(1)
+	import base64
+	global auth_list
+	auth_list = []
+	auth_list.append(base64.b64encode(s))
+	if f != sys.stdin: f.close()
+
 def usage():
 	import sys
 	sys.stderr.write(
@@ -419,6 +445,7 @@ def usage():
 		'\t-p PORT     - specify port to listen on\n'
 		'\t-r ROOT     - specify root directory of webservice\n'
 		'\t-a APP      - specify python module name for client_main()\n'
+		'\t-A FILE     - read basic auth user:pass from FILE (use - for stdin)\n'
 	)
 	sys.exit(1)
 
@@ -433,12 +460,13 @@ def main():
 		else: port = int(sys.argv[1])
 	else:
 		import getopt
-		optlist, args = getopt.getopt(sys.argv[1:], ":i:p:r:a:", ["listenip", "port", "root", "app"])
+		optlist, args = getopt.getopt(sys.argv[1:], ":i:p:r:a:A:", ["listenip", "port", "root", "app", "auth"])
 		for a,b in optlist:
 			if   a in ('-i', '--listenip'): listen = b
 			elif a in ('-p', '--port')    : port = int(b)
 			elif a in ('-r', '--root')    : root = b
 			elif a in ('-a', '--app')     : app = b
+			elif a in ('-A', '--auth')    : read_auth(b)
 			else: usage()
 	client_main = http_client_thread
 	if app:
