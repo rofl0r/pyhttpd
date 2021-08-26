@@ -349,9 +349,11 @@ def directory_listing(dir, root):
 			i += 1 ; r = sz % 1024 ; sz /= 1024
 		if i == 0: return '%d B'%sz
 		return '%d.%d %s'%(sz, int((r/1024.0)*10), 'BKMGTPEZY'[i])
+	def host_to_server(filename):
+		return filename.replace(root+os.path.sep, '/', 1)
 	def dir_entry(f):
 		lf = os.path.join(dir, f)
-		q = urllib.quote_plus(lf.replace(root+os.path.sep, '/', 1), '/')
+		q = urllib.quote_plus(host_to_server(lf), '/')
 		st = os.stat(lf)
 		d = stat.S_ISDIR(st.st_mode)
 		if d: q += '/'
@@ -374,7 +376,7 @@ def directory_listing(dir, root):
 		'<div class="list"><table summary="Directory Listing" cellpadding="0" cellspacing="0">'
 		'<thead><tr><th class="n">Name</th><th class="m">Last Modified</th><th class="s">Size</th><th class="t">Type</th></tr></thead>\n'
 		'<tbody><tr><td class="n"><a href="../">Parent Directory</a>/</td><td class="m"> </td><td class="s">-  </td><td class="t">Directory</td></tr>\n'
-		%(dir, dir))
+		%(host_to_server(dir), host_to_server(dir)))
 	f = '</tbody></table></div><div class="foot">pyhttpd</div>%s</body></html>'%sort_script
 	return "%s%s%s"%(h, ''.join(dir_entry(x) for x in os.listdir(dir)), f)
 
