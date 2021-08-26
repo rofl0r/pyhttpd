@@ -628,7 +628,7 @@ function resort(lnk) {
   table.tBodies[0].appendChild(rows[i]);
  prev_span = span;
 }
-function init_sort(init_sort_column, ascending) {
+function init_sort() {
  var tables = document.getElementsByTagName("table");
  for (var i = 0; i < tables.length; i++) {
   var table = tables[i];
@@ -649,15 +649,9 @@ function init_sort(init_sort_column, ascending) {
     n.replaceChild(link, n.firstChild);
    }
   }
-  var lnk = row[init_sort_column].firstChild;
-  if (ascending) {
-   var span = lnk.childNodes[1];
-   span.setAttribute("sortdir","down");
-  }
-  resort(lnk);
  }
 }
-init_sort(0, 0);
+init_sort();
 // -->
 </script>
 '''
