@@ -353,7 +353,7 @@ def directory_listing(dir, root):
 		return filename.replace(root+os.path.sep, '/', 1)
 	def dir_entry(f):
 		lf = os.path.join(dir, f)
-		q = urllib.quote_plus(host_to_server(lf), '/')
+		q = urllib.quote(host_to_server(lf), '/')
 		st = os.stat(lf)
 		d = stat.S_ISDIR(st.st_mode)
 		if d: q += '/'
