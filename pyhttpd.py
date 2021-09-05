@@ -486,6 +486,9 @@ def main():
 			else: usage()
 	client_main = http_client_thread
 	if app:
+		if os.path.dirname(app): sys.path.insert(1, os.path.dirname(app))
+		app = os.path.basename(app)
+		if app.endswith('.py'): app = app[:-3]
 		app = __import__(app)
 		client_main = app.client_main
 
