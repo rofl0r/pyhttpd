@@ -13,7 +13,7 @@ across machines, however unlike SimpleHTTPServer allows to continue file
 downloads where you left off using HTTP/1.1 Ranges.
 
 just drop the pyhttp.py somewhere in your `$PATH`, cd to the directory
-you want to server and run `pyhttpd.py` and launch your browser on the other
+you want to serve and run `pyhttpd.py` and launch your browser on the other
 end.
 
 also unlike SimpleHTTPServer/BaseHTTPServer which were written in a horrible
