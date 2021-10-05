@@ -257,7 +257,7 @@ class HttpClient():
 		try: cl = int(result['headers']['content-length'])
 		except: cl = 0
 		ct = result['headers']['content-type'] if 'content-type' in result['headers'] else ''
-
+		result['getdata'] = {}
 		if meth == 'GET' or (meth == 'POST' and ct in ('application/x-www-form-urlencoded', 'text/plain')):
 			s = ''
 			while len(s) < cl:
@@ -281,6 +281,11 @@ class HttpClient():
 			# extract the parts it is interested in.
 				elif not ct == 'multipart/formdata':
 					return self.send_error(400, "unknown content-type")
+			elif meth == 'GET' and '?' in result['url']:
+				p = result['url'].find('?')
+				getdata = _parse_to_dict(result['url'][p+1:].replace('&', '\n'), '=')
+				result['getdata'] = getdata
+				result['url'] = result['url'][:p]
 		return result
 
 	def disconnect(self):
