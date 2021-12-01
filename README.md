@@ -30,6 +30,7 @@ to learn what you can do with it.
 pyexpander has been modified by me to use `~` instead of `$` for its
 expansion facilities in order to work smoothly with embedded javascript,
 and "amalgamated" into a single file.
+usage of pyexpander requires the command line option `-x`.
 
 usage
 -----
@@ -56,6 +57,7 @@ pyhttpd [OPTIONS]
         -r ROOT     - specify root directory of webservice
         -a APP      - specify python module name for client_main()
         -A FILE     - read basic auth user:pass from FILE (use - for stdin)
+        -x          - enable pyexpander macro language
 ```
 
 see `helloworld.py` for how a custom app may look like, and run

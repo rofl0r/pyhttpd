@@ -20,18 +20,23 @@
 # you can find the full license text at
 # https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html
 
-# if pyexpander is shipped together with pyhttp, make use of it to preprocess
-# html files; if not just serve the plain page.
-try:
-	import pyexpander
-	def preprocess_file(fn):
+import socket, urllib, sys, os, errno
+
+preprocess_file = None
+
+def init_expander():
+	try:
+		import pyexpander
+	except ImportError:
+		sys.path.insert(1, os.path.dirname(os.path.realpath(__file__)))
+		import pyexpander
+	def preprocess_file_expander(fn):
 		with open(fn, "r") as h:
 			txt, glObals = pyexpander.expandToStr(h.read(), fn, include_paths=[os.path.dirname(fn)])
 			return txt
-except ImportError:
-	preprocess_file = None
+	global preprocess_file
+	preprocess_file = preprocess_file_expander
 
-import socket, urllib, os, errno
 
 # buffered socket class allows to do readline() etc, without having
 # to resort to reading 1 byte at a time with huge syscall overhead.
@@ -436,7 +441,6 @@ def http_client_thread(c, evt_done):
 	evt_done.set()
 
 def read_auth(fn):
-	import sys
 	if fn == '-':
 		print('enter username:password (separated with ":")')
 		f = sys.stdin
@@ -452,7 +456,6 @@ def read_auth(fn):
 	if f != sys.stdin: f.close()
 
 def usage():
-	import sys
 	sys.stderr.write(
 		'pyhttpd (c) 2021 rofl0r.\n'
 		'simple mode (zero or one argument):\n'
@@ -467,27 +470,30 @@ def usage():
 		'\t-r ROOT     - specify root directory of webservice\n'
 		'\t-a APP      - specify python module name for client_main()\n'
 		'\t-A FILE     - read basic auth user:pass from FILE (use - for stdin)\n'
+		'\t-x          - enable pyexpander macro language\n'
 	)
 	sys.exit(1)
 
 def main():
-	import threading, sys
+	import threading
 	port = 8000
 	listen = '0.0.0.0'
 	root = os.getcwd()
 	app = None
-	if len(sys.argv) == 2:
-		if sys.argv[1] == '--help': usage()
-		else: port = int(sys.argv[1])
+	if len(sys.argv) == 2 and sys.argv[1] == '--help':
+		usage()
+	elif len(sys.argv) == 2 and sys.argv[1][0] in '0123456789':
+		port = int(sys.argv[1])
 	else:
 		import getopt
-		optlist, args = getopt.getopt(sys.argv[1:], ":i:p:r:a:A:", ["listenip", "port", "root", "app", "auth"])
+		optlist, args = getopt.getopt(sys.argv[1:], ":xi:p:r:a:A:", ["expander", "listenip", "port", "root", "app", "auth"])
 		for a,b in optlist:
 			if   a in ('-i', '--listenip'): listen = b
 			elif a in ('-p', '--port')    : port = int(b)
 			elif a in ('-r', '--root')    : root = b
 			elif a in ('-a', '--app')     : app = b
 			elif a in ('-A', '--auth')    : read_auth(b)
+			elif a in ('-x', '--expander'): init_expander()
 			else: usage()
 	client_main = http_client_thread
 	if app:
