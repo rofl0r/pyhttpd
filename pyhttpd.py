@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 
 # httpsrv library routines for python.
-# Copyright (C) 2018-2021 rofl0r
+# Copyright (C) 2018-2022 rofl0r
 
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
