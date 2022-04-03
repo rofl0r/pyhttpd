@@ -427,6 +427,9 @@ def http_client_thread(c, evt_done):
 			c.send_error(403, forbidden_page())
 			break
 		if os.path.isdir(fs):
+			if not fn.endswith('/'):
+				c.redirect(fn + '/')
+				continue
 			if os.path.exists(os.path.join(fs, 'index.html')):
 				c.redirect(os.path.join(fn, 'index.html'))
 			else: c.send(200, "OK", directory_listing(fs, root), HTML_HEADER)
