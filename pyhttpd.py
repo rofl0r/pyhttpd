@@ -343,11 +343,13 @@ def directory_listing(dir, root):
 				elif ord(s[i]) & 0xc0 == 0xc0: l+=1
 				i += 1
 			return l
-		if len(f) <= 80 or utf8len(f) <= 80: return f
+		maxlen = 80
+		if len(f) <= maxlen or utf8len(f) <= maxlen: return f
+		splitpos = maxlen/2
 		# avoid splitting utf-8 characters in the middle
-		p = 50
-		while p < 55 and ((ord(f[p]) & 0xc0) == 0x80): p += 1
-		q = 77-p
+		p = splitpos
+		while p < splitpos+5 and ((ord(f[p]) & 0xc0) == 0x80): p += 1
+		q = (maxlen-3)-p
 		while q > 15 and ((ord(f[-q]) & 0xc0) == 0x80): q -= 1
 		return '%s...%s'%(f[:p], f[-(q):])
 	def format_date(ct):
