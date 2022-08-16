@@ -1,4 +1,25 @@
-# example "app" featuring a file upload page.
+# example "app" featuring a file upload page/pastebin.
+
+import random, os
+def unique_name():
+	return "%016x"%random.SystemRandom().getrandbits(8*8)
+
+def unique_file(root, ext):
+	while 1:
+		un = "%s%s"%(unique_name(), ext)
+		u = "%s/%s"%(root, un)
+		try:
+			f = open(u, 'r')
+			f.close()
+		except IOError:
+			return un
+
+def fext(fn):
+	l = len(fn)
+	while l > 0:
+		l -= 1
+		if fn[l] == '.': return fn[l:]
+	return ''
 
 # ugly code to extract first file in multi-part post request; rest is
 # quietly discarded.
@@ -30,12 +51,14 @@ def process_upload(c, req):
 	if not filename[0] == '"' and '"' in filename[1:]: return False
 	_, filename, _ = filename.split('"')
 	left -= len(s)
+
+	un = unique_file(c.root, fext(filename))
 	# this whole complexity stems from the fact that we want to read
 	# data in blocks, but part of the boundary may be in a previous
 	# block; the smart designers of multipart/form-data decided to
 	# only send the content-length of the entire multi-part block, but
 	# not for its single chunks.
-	with open(c.root + '/upload.%s.tmp'%filename, 'w') as f:
+	with open("%s/%s"%(c.root, un), 'wb') as f:
 		done_write = 0
 		lastblock = ''
 		while left > 0:
@@ -57,32 +80,41 @@ def process_upload(c, req):
 				f.write(twoblocks[:p])
 			left -= len(s)
 		f.close()
-	return True
+	return un
+
+def sec_check(fs, root):
+	rp = os.path.normpath(fs)
+	return rp == root or rp.startswith(root + os.path.sep)
 
 def client_main(c, evt_done):
 	root = c.root
 	while c.keep_alive and c.active:
 		req = c.read_request()
 		if req is None: break
-		if req['url'] == '/':
-			c.redirect('/upload.php')
-		elif req['url'] == '/upload.php' and req['method'] == 'GET':
+		if req['url'] == '/' and req['method'] == 'GET':
 			c.send(200, "OK",
 				'<html><body>\n'
+				' <p>upload file using this form or via <pre>curl -F \'f=@"filename.txt"\' http://%s</pre><p>\n'
 				' <form method="post" action="/upload.php" enctype="multipart/form-data">\n'
 				'  <input type="file" name="filename"><input type="submit">\n'
 				' </form>\n'
-				'<body></html>\n')
-		elif req['url'] == '/upload.php' and req['method'] == 'POST':
-			if process_upload(c, req):
+				'<body></html>\n'%req['headers']['host'])
+		elif req['url'] == '/' and req['method'] == 'POST':
+			un = process_upload(c, req)
+			if un:
 				c.send(200, "OK",
-					'<html><body>\n'
-					' <p>upload success!</p>\n'
-					'<body></html>\n')
+					'http://%s/%s\n'%(req['headers']['host'], un))
 			else:
 				c.send_error(400)
 		else:
-			c.send_error(404)
+			fn = req['url'].find('?')
+			if fn != -1: fn = req['url'][:fn]
+			else: fn = req['url']
+			fs = root + fn
+			if os.path.exists(fs) and sec_check(fs, root):
+				c.serve_file(fs, req['range'])
+			else:
+				c.send_error(404)
 	c.disconnect()
 	evt_done.set()
 
