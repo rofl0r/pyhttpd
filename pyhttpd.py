@@ -154,6 +154,11 @@ ERROR_DICT = {
 
 CONTENT_TYPE_DICT = {
 	'.html' : 'text/html',
+	'.txt' : 'text/plain',
+	'.gif' : 'image/gif',
+	'.png' : 'image/png',
+	'.jpg' : 'image/jpeg',
+	'.jpeg' : 'image/jpeg',
 }
 
 def _get_content_type(filename):
