@@ -178,7 +178,7 @@ class HttpClient():
 	def _send_i(self, data):
 		try: self.conn.send(data)
 		except: return False
-		if self.debugreq and len(data): print ">>>\n", data
+		if self.debugreq and len(data): print(">>>\n", data)
 		return True
 
 	def send_header(self, code, msg, response_len, headers=None):
@@ -236,7 +236,7 @@ class HttpClient():
 		# even be a valid HTTP request.
 		except socket.error as e: return None
 		if s == '': return None
-		if self.debugreq: print "<<<\n", s.strip()
+		if self.debugreq: print("<<<\n", s.strip())
 
 		meth, url, ver = _parse_req(s)
 		if not ver.startswith('HTTP/'): return self.send_error(400)
@@ -249,7 +249,7 @@ class HttpClient():
 		# except socket.error as e:
 		# if e.errno == errno.ECONNRESET: pass
 		if s == '': return self.send_error(400)
-		if self.debugreq: print s.strip()
+		if self.debugreq: print(s.strip())
 
 		headers = _parse_to_dict(s)
 		result = {}
@@ -275,7 +275,7 @@ class HttpClient():
 				except: return self.send_error(400)
 				if r == '': return self.send_error(400)
 				s += r
-			if cl and self.debugreq: print s.strip()
+			if cl and self.debugreq: print(s.strip())
 			if meth == 'POST':
 				if ct in ('application/x-www-form-urlencoded', 'text/plain'):
 					postdata = _parse_to_dict(s, '=')
