@@ -395,7 +395,11 @@ def directory_listing(dir, root):
 		'<tbody><tr><td class="n"><a href="../">Parent Directory</a>/</td><td class="m"> </td><td class="s">-  </td><td class="t">Directory</td></tr>\n'
 		%(host_to_server(dir), host_to_server(dir)))
 	f = '</tbody></table></div><div class="foot">pyhttpd</div>%s</body></html>'%sort_script
-	return "%s%s%s"%(h, ''.join(dir_entry(x) for x in os.listdir(dir)), f)
+	try:
+		return "%s%s%s"%(h, ''.join(dir_entry(x) for x in os.listdir(dir)), f)
+	except OSError:
+		# FIXME parse Errno and return error code, i.e. 403 for EPERM ?
+		return None
 
 def sec_check(fs, root):
 	rp = os.path.normpath(fs)
@@ -437,7 +441,12 @@ def http_client_thread(c, evt_done):
 				continue
 			if os.path.exists(os.path.join(fs, 'index.html')):
 				c.redirect(os.path.join(fn, 'index.html'))
-			else: c.send(200, "OK", directory_listing(fs, root), HTML_HEADER)
+			else:
+				dl = directory_listing(fs, root)
+				if dl is not None:
+					c.send(200, "OK", dl, HTML_HEADER)
+				else:
+					c.send_error(403)
 		elif os.path.exists(fs) and preprocess_file and fs.endswith('.html'):
 			s = preprocess_file(fs)
 			c.send(200, "OK", s, HTML_HEADER)
