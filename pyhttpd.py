@@ -154,10 +154,17 @@ ERROR_DICT = {
 
 CONTENT_TYPE_DICT = {
 	'.html' : 'text/html',
+	'.css' : 'text/css',
+	'.js'  : 'text/javascript',
+	'.json': 'application/json',
 	'.gif' : 'image/gif',
 	'.png' : 'image/png',
 	'.jpg' : 'image/jpeg',
 	'.jpeg' : 'image/jpeg',
+	'.webp' : 'image/webp',
+	'.mp4' : 'video/mp4',
+	'.mkv' : 'video/x-matroska',
+	'.webm' : 'video/webm',
 }
 
 CONTENT_TYPE_TEXT_DICT = {
