@@ -154,16 +154,27 @@ ERROR_DICT = {
 
 CONTENT_TYPE_DICT = {
 	'.html' : 'text/html',
-	'.txt' : 'text/plain',
 	'.gif' : 'image/gif',
 	'.png' : 'image/png',
 	'.jpg' : 'image/jpeg',
 	'.jpeg' : 'image/jpeg',
 }
 
+CONTENT_TYPE_TEXT_DICT = {
+	'.txt' : True,
+	'.log' : True,
+	'.diff' : True,
+	'.patch' : True,
+	'.c' : True,
+	'.h' : True,
+	'.py' : True,
+	'.pl' : True,
+}
+
 def _get_content_type(filename):
 	_, ext = os.path.splitext(filename)
 	if ext in CONTENT_TYPE_DICT: return CONTENT_TYPE_DICT[ext]
+	elif ext in CONTENT_TYPE_TEXT_DICT: return "text/plain"
 	return ''
 
 class HttpClient():
