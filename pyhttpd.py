@@ -182,7 +182,7 @@ def _get_content_type(filename):
 	_, ext = os.path.splitext(filename)
 	if ext in CONTENT_TYPE_DICT: return CONTENT_TYPE_DICT[ext]
 	elif ext in CONTENT_TYPE_TEXT_DICT: return "text/plain"
-	return ''
+	return 'application/octet-stream'
 
 class HttpClient():
 	def __init__(self, addr, conn, root):
