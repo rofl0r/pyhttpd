@@ -154,6 +154,7 @@ ERROR_DICT = {
 
 CONTENT_TYPE_DICT = {
 	'.html' : 'text/html',
+	'.htm' : 'text/html',
 	'.css' : 'text/css',
 	'.js'  : 'text/javascript',
 	'.json': 'application/json',
